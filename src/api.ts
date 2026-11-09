@@ -1,4 +1,4 @@
-import { db, getMeta, setMeta, updateWord } from './db'
+import { addTerms, db, getMeta, setMeta, updateWord } from './db'
 import type { WordDraft } from './types'
 
 export interface Definition extends WordDraft {
@@ -75,4 +75,22 @@ export function fillPending(onProgress?: (done: number, total: number) => void) 
     filling = null
   })
   return filling
+}
+
+/**
+ * Pulls words sent from the iOS share sheet, adds them, and auto-fills them.
+ * Returns how many new words were added (0 if no passphrase is set or offline).
+ */
+export async function syncInbox(): Promise<number> {
+  if (!(await getToken())) return 0
+  let terms: string[]
+  try {
+    terms = ((await call('/api/inbox/take', {})) as { terms: string[] }).terms
+  } catch {
+    return 0
+  }
+  if (!terms.length) return 0
+  const { added } = await addTerms(terms)
+  if (added) void fillPending()
+  return added
 }

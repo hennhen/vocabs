@@ -10,5 +10,8 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  // Holds words sent from the iOS share sheet until the app picks them up.
+  "durable_objects": { "bindings": [{ "name": "INBOX", "class_name": "Inbox" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Inbox"] }],
   "observability": { "enabled": true }
 }

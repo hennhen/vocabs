@@ -105,8 +105,10 @@ iPhone (Home Screen PWA)                      Cloudflare
    export/import backups, Settings
 3. ✅ Worker + Claude auto-fill (on picking a suggestion or ✨ button), did-you-mean for typos,
    background fill for pasted lists, passphrase in Settings
-4. Deploy to Cloudflare (DEPLOY.md); install on the iPhone; first live check of auto-fill quality
-5. v0.2 features
+4. ✅ Deployed on Cloudflare; installed on the iPhone; auto-fill is working live
+5. ✅ Word list opens full cards (‹ › to browse, then Edit); edit fields grow to fit; share-sheet
+   capture through an iOS Shortcut and a server inbox (Durable Object). See SHORTCUT.md
+6. Remaining v0.2: word of the day, reverse cards, stats
 
 ## Open questions
 - None right now.

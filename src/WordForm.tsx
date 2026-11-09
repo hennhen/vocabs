@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { define, toDraft } from './api'
 import { loadWords, suggest } from './autocomplete'
 import type { WordDraft } from './types'
@@ -17,6 +17,18 @@ interface Props {
 
 const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
 const commas = (s: string) => s.split(/[,，、]/).map((l) => l.trim()).filter(Boolean)
+
+/** A textarea that grows to fit its text, so nothing is hidden or cut off. */
+function Grow(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + 2}px`
+  }, [props.value])
+  return <textarea ref={ref} rows={1} {...props} className={`grow-area ${props.className ?? ''}`} />
+}
 
 export default function WordForm({ initial, submitLabel, onSubmit, existing, autoFocus, autoFillOnPick, children }: Props) {
   const [term, setTerm] = useState(initial.term)
@@ -162,11 +174,11 @@ export default function WordForm({ initial, submitLabel, onSubmit, existing, aut
       )}
       <label className="field">
         <span>Definition</span>
-        <textarea value={definition} onChange={(e) => setDefinition(e.target.value)} rows={2} />
+        <Grow value={definition} onChange={(e) => setDefinition(e.target.value)} />
       </label>
       <label className="field">
         <span>繁體中文</span>
-        <input className="zh" value={zhHant} onChange={(e) => setZhHant(e.target.value)} placeholder="無處不在" />
+        <Grow className="zh" value={zhHant} onChange={(e) => setZhHant(e.target.value)} placeholder="無處不在" />
       </label>
       <label className="field">
         <span>Part of speech</span>
@@ -174,19 +186,19 @@ export default function WordForm({ initial, submitLabel, onSubmit, existing, aut
       </label>
       <label className="field">
         <span>Examples (one per line)</span>
-        <textarea value={examples} onChange={(e) => setExamples(e.target.value)} rows={2} />
+        <Grow value={examples} onChange={(e) => setExamples(e.target.value)} />
       </label>
       <label className="field">
         <span>Roots / etymology</span>
-        <input value={etymology} onChange={(e) => setEtymology(e.target.value)} placeholder="Latin ubique, 'everywhere'" />
+        <Grow value={etymology} onChange={(e) => setEtymology(e.target.value)} placeholder="Latin ubique, 'everywhere'" />
       </label>
       <label className="field">
         <span>Memory hook</span>
-        <input value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} />
+        <Grow value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} />
       </label>
       <label className="field">
         <span>Synonyms (comma-separated)</span>
-        <input value={synonyms} onChange={(e) => setSynonyms(e.target.value)} autoCapitalize="none" />
+        <Grow value={synonyms} onChange={(e) => setSynonyms(e.target.value)} autoCapitalize="none" />
       </label>
       {error && <p className="hint warn">{error}</p>}
       <button className="primary" disabled={busy}>
