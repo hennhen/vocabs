@@ -13,5 +13,7 @@
   // Holds words sent from the iOS share sheet until the app picks them up.
   "durable_objects": { "bindings": [{ "name": "INBOX", "class_name": "Inbox" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Inbox"] }],
+  // Workers AI, for word pronunciations (text-to-speech).
+  "ai": { "binding": "AI" },
   "observability": { "enabled": true }
 }
