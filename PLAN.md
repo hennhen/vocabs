@@ -25,6 +25,12 @@ spaced repetition. No Apple developer fee, no Mac required.
 1. **Active recall:** see the word, try to recall it, *then* flip.
 2. **Both directions:** word → meaning (recognise) and definition/Chinese → word (produce).
 3. **Spaced repetition:** FSRS schedules each card; due reviews come first, then new cards.
+   **Daily new-card limit: 20** (adjustable), with a "Study 10 more" button. Adding words is never
+   limited; the limit only controls how many *start* reviewing each day. Each new card brings
+   several future reviews, so steady intake keeps reviews to roughly 10–20 min/day and avoids
+   the review pile-ups that make people quit. If more than 200 reviews are due, new cards pause
+   until the backlog clears. The study day rolls over at 4am. A "learning" card is shown at most
+   2 minutes early, so the short in-session gaps actually happen.
 4. **Depth, not just definitions:** a good example sentence, roots/etymology, and the Chinese
    equivalent as a second hook (e.g. *ubiquitous* → 無處不在, *ubi-* "everywhere").
 5. **My own sentence (optional):** writing one later helps the word stick.
@@ -86,15 +92,19 @@ iPhone (Home Screen PWA)                      Cloudflare
 - Backup file = `{ version, exportedAt, words, cards, reviewLogs }`
 
 ## Repo layout
-- `src/`: the PWA (`srs.ts` already wraps ts-fsrs, with a test)
+- `src/`: the PWA. `srs.ts` (scheduling + daily queue), `db.ts` (IndexedDB), `backup.ts`,
+  `autocomplete.ts`, `screens/`
+- `public/words.txt`: ~67k English words ranked by frequency, for autocomplete. Regenerate with
+  `scripts/build-wordlist.mjs` (sources: SUBTLEX-US frequencies, ISC; `word-list`, MIT)
 - `worker/`: the Cloudflare Worker (to be added)
 
 ## Milestones
 1. ✅ Skeleton: Vite + React + PWA + ts-fsrs, tests and build passing
-2. Local data layer (Dexie) + manual add + review screen + export/import
+2. ✅ Local data layer (Dexie), add with autocomplete, paste a list, review screen, word list/edit,
+   export/import backups, Settings
 3. Worker + Claude auto-fill + paste-a-list
 4. Deploy to Cloudflare Pages + Worker; install on the iPhone
 5. v0.2 features
 
 ## Open questions
-- New cards per day: no limit, or a soft limit (e.g. 20) that I can override with "study more"?
+- None right now.
