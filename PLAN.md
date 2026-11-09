@@ -14,7 +14,7 @@ spaced repetition. No Apple developer fee, no Mac required.
 | Backups | One-tap **Export** of a JSON backup (iOS share sheet → iCloud Drive / Files), **Import** to restore, and a reminder if no backup in 7 days | "I want things to be saved" without running a backend |
 | Scheduling | FSRS (`ts-fsrs`), the algorithm Anki uses now | More efficient than SM-2; grades Again / Hard / Good / Easy |
 | Auto-fill | Claude API, called through a tiny **Cloudflare Worker** | Best Chinese and etymology quality; the API key stays server-side |
-| Hosting | Cloudflare Pages (free), auto-deploys from this repo | Works with a private repo; the Worker lives in the same account |
+| Hosting | One Cloudflare Worker (free) serves the built app *and* `/api`; auto-deploys from this repo | One service, same origin (no CORS), works with a private repo. See DEPLOY.md |
 | Chinese | Traditional characters only, no pinyin/zhuyin | It's there for correlation, not to learn pronunciation |
 | Card front | The word only | Pure recall; the context of where I found it isn't stored |
 | Auto-fill model | Claude Sonnet 5.5 (`claude-sonnet-5-5`) with structured JSON output | Good quality; about $0.005 per word |
@@ -96,14 +96,16 @@ iPhone (Home Screen PWA)                      Cloudflare
   `autocomplete.ts`, `screens/`
 - `public/words.txt`: ~67k English words ranked by frequency, for autocomplete. Regenerate with
   `scripts/build-wordlist.mjs` (sources: SUBTLEX-US frequencies, ISC; `word-list`, MIT)
-- `worker/`: the Cloudflare Worker (to be added)
+- `worker/`: the Cloudflare Worker. `define.ts` holds the Claude prompt and output schema; `index.ts` handles
+  routing, the passphrase check and input validation
 
 ## Milestones
 1. ✅ Skeleton: Vite + React + PWA + ts-fsrs, tests and build passing
 2. ✅ Local data layer (Dexie), add with autocomplete, paste a list, review screen, word list/edit,
    export/import backups, Settings
-3. Worker + Claude auto-fill + paste-a-list
-4. Deploy to Cloudflare Pages + Worker; install on the iPhone
+3. ✅ Worker + Claude auto-fill (on picking a suggestion or ✨ button), did-you-mean for typos,
+   background fill for pasted lists, passphrase in Settings
+4. Deploy to Cloudflare (DEPLOY.md); install on the iPhone; first live check of auto-fill quality
 5. v0.2 features
 
 ## Open questions

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
+import { getToken, ping, setToken } from '../api'
 import { exportBackup, parseBackup, restoreBackup } from '../backup'
 import { db, getMeta, getSettings, saveSettings } from '../db'
 
@@ -7,6 +8,11 @@ export default function Settings() {
   const [message, setMessage] = useState('')
   const [persisted, setPersisted] = useState<boolean | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [token, setTokenInput] = useState<string | null>(null)
+  const [tokenMsg, setTokenMsg] = useState('')
+  useEffect(() => {
+    getToken().then(setTokenInput)
+  }, [])
   const data = useLiveQuery(async () => ({
     settings: await getSettings(),
     lastBackupAt: await getMeta<number | null>('lastBackupAt', null),
@@ -76,6 +82,37 @@ export default function Settings() {
           Tip: add this app to your Home Screen (Share → Add to Home Screen) so iOS keeps its data.
         </p>
       )}
+
+      <h2>Auto-fill</h2>
+      <p className="hint">
+        The passphrase you set as <code>APP_TOKEN</code> in Cloudflare. It stops strangers from using your Claude
+        credit.
+      </p>
+      <div className="row">
+        <input
+          type="password"
+          className="grow"
+          autoComplete="off"
+          placeholder="Passphrase"
+          value={token ?? ''}
+          onChange={(e) => setTokenInput(e.target.value)}
+        />
+        <button
+          onClick={async () => {
+            await setToken(token ?? '')
+            setTokenMsg('Checking…')
+            try {
+              await ping()
+              setTokenMsg('Connected ✓')
+            } catch (e) {
+              setTokenMsg((e as Error).message)
+            }
+          }}
+        >
+          Save
+        </button>
+      </div>
+      {tokenMsg && <p className={`hint ${tokenMsg.startsWith('Connected') ? 'ok' : 'warn'}`}>{tokenMsg}</p>}
 
       <h2>Learning</h2>
       <label className="field">

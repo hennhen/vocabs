@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
+import { fillPending } from '../api'
 import { db, deleteWord, setSuspended, updateWord } from '../db'
 import { formatInterval, State } from '../srs'
 import WordForm from '../WordForm'
@@ -7,6 +8,7 @@ import WordForm from '../WordForm'
 export default function Words() {
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
+  const [fillMsg, setFillMsg] = useState('')
   const data = useLiveQuery(async () => {
     const [words, cards] = await Promise.all([db.words.orderBy('createdAt').reverse().toArray(), db.cards.toArray()])
     return { words, cards: new Map(cards.map((c) => [c.wordId, c])) }
@@ -63,6 +65,25 @@ export default function Words() {
   return (
     <section>
       <h2>Words ({data.words.length})</h2>
+      {(() => {
+        const pending = data.words.filter((w) => w.status === 'pending').length
+        if (!pending && !fillMsg) return null
+        return (
+          <div className="row fillbar">
+            {pending > 0 && (
+              <button
+                onClick={async () => {
+                  const r = await fillPending((done, total) => setFillMsg(`Filling in… ${done}/${total}`))
+                  setFillMsg(`Filled in ${r.filled}.${r.failed ? ` ${r.failed} failed; check Settings → Auto-fill.` : ''}`)
+                }}
+              >
+                ✨ Fill in {pending} word{pending === 1 ? '' : 's'}
+              </button>
+            )}
+            {fillMsg && <span className="hint">{fillMsg}</span>}
+          </div>
+        )
+      })()}
       <input
         type="search"
         className="search"

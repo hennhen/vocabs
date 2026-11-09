@@ -28,5 +28,7 @@ export default defineConfig({
       },
     }),
   ],
+  // In `npm run dev`, send /api to a local `wrangler dev` (npm run dev:worker) on port 8787.
+  server: { proxy: { '/api': 'http://localhost:8787' } },
   test: { environment: 'node' },
 })

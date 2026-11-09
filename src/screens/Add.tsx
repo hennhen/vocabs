@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
+import { fillPending } from '../api'
 import { addTerms, addWord, db } from '../db'
 import { emptyDraft } from '../types'
 import WordForm from '../WordForm'
@@ -14,13 +15,17 @@ export default function Add() {
     const terms = paste.split(/[\n,;]+/)
     const { added, skipped } = await addTerms(terms)
     setPaste('')
-    setMessage(`Added ${added} word${added === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} already in your deck` : ''}.`)
+    const base = `Added ${added} word${added === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} already in your deck` : ''}.`
+    setMessage(base)
+    if (!added) return
+    const { filled, failed } = await fillPending((done, total) => setMessage(`${base} Filling in details… ${done}/${total}`))
+    setMessage(`${base} Filled in ${filled}.${failed ? ` ${failed} couldn’t be filled yet; retry from Words.` : ''}`)
   }
 
   return (
     <section>
       <h2>Add a word</h2>
-      <p className="hint">Auto-fill from Claude is coming next. For now, fill in what you know.</p>
+      <p className="hint">Type a word, then pick a suggestion or tap ✨ Auto-fill. Everything stays editable.</p>
       {message && <p className="hint ok">{message}</p>}
       <WordForm
         key={formKey}
@@ -28,6 +33,7 @@ export default function Add() {
         submitLabel="Add word"
         existing={existing}
         autoFocus
+        autoFillOnPick
         onSubmit={async (d) => {
           const w = await addWord(d)
           setMessage(
@@ -40,7 +46,7 @@ export default function Add() {
       />
 
       <h2>Paste a list</h2>
-      <p className="hint">One word per line, or separated by commas. They’ll wait under Words until they have details.</p>
+      <p className="hint">One word per line, or separated by commas. Claude fills in the details in the background.</p>
       <textarea
         className="paste"
         value={paste}

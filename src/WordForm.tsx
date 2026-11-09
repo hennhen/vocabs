@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { define, toDraft } from './api'
 import { loadWords, suggest } from './autocomplete'
 import type { WordDraft } from './types'
 
@@ -9,13 +10,15 @@ interface Props {
   /** Terms already in the deck, so suggestions can mark them. */
   existing?: Set<string>
   autoFocus?: boolean
+  /** Auto-fill as soon as an autocomplete suggestion is picked. */
+  autoFillOnPick?: boolean
   children?: React.ReactNode
 }
 
 const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
 const commas = (s: string) => s.split(/[,，、]/).map((l) => l.trim()).filter(Boolean)
 
-export default function WordForm({ initial, submitLabel, onSubmit, existing, autoFocus, children }: Props) {
+export default function WordForm({ initial, submitLabel, onSubmit, existing, autoFocus, autoFillOnPick, children }: Props) {
   const [term, setTerm] = useState(initial.term)
   const [pos, setPos] = useState(initial.pos)
   const [definition, setDefinition] = useState(initial.definition)
@@ -28,12 +31,38 @@ export default function WordForm({ initial, submitLabel, onSubmit, existing, aut
   const [busy, setBusy] = useState(false)
   const [list, setList] = useState<string[] | null>(null)
   const [showSuggest, setShowSuggest] = useState(false)
+  const [filling, setFilling] = useState(false)
+  const [didYouMean, setDidYouMean] = useState('')
 
   useEffect(() => {
     loadWords().then(setList, () => setList([]))
   }, [])
 
   const suggestions = list && showSuggest ? suggest(list, term) : []
+
+  const autoFill = async (word = term) => {
+    if (!word.trim()) return
+    setError('')
+    setDidYouMean('')
+    setFilling(true)
+    try {
+      const d = await define(word)
+      const draft = toDraft(d)
+      if (!d.isWord && d.suggestion) setDidYouMean(d.suggestion)
+      else setTerm(draft.term || word)
+      setPos(draft.pos)
+      setDefinition(draft.definition)
+      setZhHant(draft.zhHant)
+      setExamples(draft.examples.join('\n'))
+      setEtymology(draft.etymology)
+      setMnemonic(draft.mnemonic)
+      setSynonyms(draft.synonyms.join(', '))
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setFilling(false)
+    }
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,6 +91,7 @@ export default function WordForm({ initial, submitLabel, onSubmit, existing, aut
       <label className="field">
         <span>Word</span>
         <div className="autocomplete">
+          <div className="term-row">
           <input
             value={term}
             onChange={(e) => {
@@ -77,6 +107,18 @@ export default function WordForm({ initial, submitLabel, onSubmit, existing, aut
             placeholder="e.g. ubiquitous"
             required
           />
+          <button
+            type="button"
+            className="fill"
+            disabled={filling || !term.trim()}
+            onClick={() => {
+              setShowSuggest(false)
+              autoFill()
+            }}
+          >
+            {filling ? 'Filling…' : '✨ Auto-fill'}
+          </button>
+          </div>
           {suggestions.length > 0 && (
             <ul className="suggestions" role="listbox">
               {suggestions.map((s) => (
@@ -87,6 +129,7 @@ export default function WordForm({ initial, submitLabel, onSubmit, existing, aut
                     onClick={() => {
                       setTerm(s)
                       setShowSuggest(false)
+                      if (autoFillOnPick) autoFill(s)
                     }}
                   >
                     {s}
@@ -98,6 +141,22 @@ export default function WordForm({ initial, submitLabel, onSubmit, existing, aut
           )}
         </div>
       </label>
+      {didYouMean && (
+        <p className="hint warn">
+          Not a word I know. Did you mean{' '}
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              setTerm(didYouMean)
+              setDidYouMean('')
+            }}
+          >
+            {didYouMean}
+          </button>
+          ? (Details below are for that word.)
+        </p>
+      )}
       {existing?.has(term.trim().toLowerCase()) && submitLabel === 'Add word' && (
         <p className="hint warn">Already in your deck.</p>
       )}

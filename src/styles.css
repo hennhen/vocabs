@@ -215,3 +215,12 @@ input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 
 }
 .tabs button.active { color: var(--accent); font-weight: 600; }
 .tab-icon { font-size: 1.3rem; line-height: 1; }
+
+.term-row { display: flex; gap: 8px; }
+.term-row input { flex: 1; min-width: 0; }
+.fill { white-space: nowrap; padding: 10px 12px; }
+.grow { flex: 1; min-width: 0; }
+.row input { width: auto; }
+.row input.grow { width: 100%; }
+.fillbar { align-items: center; margin-bottom: 8px; }
+code { font-size: 0.9em; }
