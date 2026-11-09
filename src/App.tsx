@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { syncInbox } from './api'
 import Add from './screens/Add'
 import Review from './screens/Review'
 import Settings from './screens/Settings'
@@ -19,6 +20,22 @@ const tabFromHash = (): Tab => {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>(tabFromHash)
+  const [toast, setToast] = useState('')
+
+  // Pick up words sent from the share sheet whenever the app opens or comes back to the foreground.
+  useEffect(() => {
+    const sync = async () => {
+      const n = await syncInbox()
+      if (n) {
+        setToast(`Added ${n} word${n === 1 ? '' : 's'} from Share`)
+        setTimeout(() => setToast(''), 4000)
+      }
+    }
+    sync()
+    const onVisible = () => document.visibilityState === 'visible' && sync()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
@@ -40,6 +57,7 @@ export default function App() {
         {tab === 'words' && <Words />}
         {tab === 'settings' && <Settings />}
       </main>
+      {toast && <div className="toast">{toast}</div>}
       <nav className="tabs">
         {TABS.map((t) => (
           <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => goTo(t.id)}>

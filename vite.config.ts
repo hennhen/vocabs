@@ -30,5 +30,8 @@ export default defineConfig({
   ],
   // In `npm run dev`, send /api to a local `wrangler dev` (npm run dev:worker) on port 8787.
   server: { proxy: { '/api': 'http://localhost:8787' } },
-  test: { environment: 'node' },
+  test: {
+    environment: 'node',
+    alias: { 'cloudflare:workers': new URL('./worker/cloudflare-workers.stub.ts', import.meta.url).pathname },
+  },
 })

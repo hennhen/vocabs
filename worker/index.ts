@@ -1,15 +1,29 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { cleanTerm, defineWord } from './define'
+import type { Inbox } from './inbox'
+
+export { Inbox } from './inbox'
 
 export interface Env {
   ANTHROPIC_API_KEY: string
   /** Passphrase the app sends, so strangers who find the URL can't spend your API credit. */
   APP_TOKEN: string
   ASSETS: Fetcher
+  INBOX: DurableObjectNamespace<Inbox>
 }
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+
+/** Plain-text replies for the iOS Shortcut, which shows the response as a notification. */
+const text = (body: string, status = 200) =>
+  new Response(body, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } })
+
+const inbox = (env: Env) => env.INBOX.get(env.INBOX.idFromName('inbox'))
+
+/** Turns a share-sheet selection like `“Ubiquitous,”` into `ubiquitous`. */
+export const fromSelection = (raw: string) =>
+  cleanTerm(raw.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '').toLowerCase())
 
 async function tokenMatches(given: string, expected: string): Promise<boolean> {
   const enc = new TextEncoder()
@@ -30,7 +44,28 @@ export async function handleApi(request: Request, env: Env, client?: Anthropic):
   if (!env.APP_TOKEN || !env.ANTHROPIC_API_KEY) return json({ error: 'Server is missing its secrets' }, 500)
   const auth = request.headers.get('authorization') ?? ''
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
-  if (!(await tokenMatches(token, env.APP_TOKEN))) return json({ error: 'Wrong app passphrase' }, 401)
+  const fromShortcut = url.pathname === '/api/inbox' && request.method === 'POST'
+  if (!(await tokenMatches(token, env.APP_TOKEN))) {
+    return fromShortcut ? text('Vocabs: wrong passphrase in the Shortcut', 401) : json({ error: 'Wrong app passphrase' }, 401)
+  }
+
+  if (fromShortcut) {
+    const raw = request.headers.get('content-type')?.includes('json')
+      ? ((await request.json().catch(() => ({}))) as { term?: unknown }).term
+      : await request.text()
+    const term = typeof raw === 'string' ? fromSelection(raw) : null
+    if (!term) return text('Vocabs: select a single word or short phrase', 400)
+    try {
+      const r = await inbox(env).add(term)
+      return text(r.added ? `Added “${term}” to Vocabs` : `“${term}” is already waiting in Vocabs`)
+    } catch (e) {
+      return text(`Vocabs: ${(e as Error).message}`, 507)
+    }
+  }
+
+  if (url.pathname === '/api/inbox/take' && request.method === 'POST') {
+    return json({ terms: await inbox(env).take() })
+  }
 
   if (url.pathname === '/api/ping') return json({ ok: true })
 
