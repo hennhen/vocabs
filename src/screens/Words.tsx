@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { fillPending } from '../api'
+import { preloadAudio } from '../audio'
 import CardBack, { speak } from '../CardBack'
 import { db, deleteWord, setSuspended, updateWord } from '../db'
 import { formatInterval, State } from '../srs'
@@ -25,6 +26,11 @@ export default function Words() {
     const [words, cards] = await Promise.all([db.words.orderBy('createdAt').reverse().toArray(), db.cards.toArray()])
     return { words, cards: new Map(cards.map((c) => [c.wordId, c])) }
   }, [])
+  const viewing = mode.kind === 'view' ? data?.words.find((w) => w.id === mode.id)?.term : undefined
+  useEffect(() => {
+    if (viewing) preloadAudio(viewing)
+  }, [viewing])
+
   if (!data) return null
 
   const now = new Date()

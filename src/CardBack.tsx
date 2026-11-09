@@ -1,12 +1,6 @@
 import type { Word } from './types'
 
-export function speak(text: string) {
-  if (!('speechSynthesis' in window)) return
-  speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(text)
-  u.lang = 'en-US'
-  speechSynthesis.speak(u)
-}
+export { speak } from './audio'
 
 export default function CardBack({ word }: { word: Word }) {
   return (

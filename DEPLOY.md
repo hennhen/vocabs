@@ -21,6 +21,10 @@ Worker **vocabs** → **Settings** → **Variables and Secrets** → add, both a
 - `ANTHROPIC_API_KEY`: the key from step 1
 - `APP_TOKEN`: a passphrase you make up (long and random; you only type it once on your phone)
 
+Pronunciations use Workers AI (`@cf/deepgram/aura-2-en`) through the `ai` binding in
+`wrangler.jsonc`. There's nothing to set up in the dashboard. Each word is generated once and then
+cached on the server and on the phone.
+
 ## 4. Install on the iPhone
 1. Open `https://vocabs.<your-subdomain>.workers.dev` in **Safari**.
 2. Share → **Add to Home Screen**.
@@ -31,5 +35,6 @@ Worker **vocabs** → **Settings** → **Variables and Secrets** → add, both a
 ## Local development
 ```bash
 npm run dev          # UI only, hot reload
-npm run dev:worker   # full app + API on :8787 (put APP_TOKEN and ANTHROPIC_API_KEY in .dev.vars)
+npm run dev:worker   # full app + API on :8787 (put APP_TOKEN and ANTHROPIC_API_KEY in .dev.vars;
+                     # pronunciation uses Workers AI, which needs `npx wrangler login` locally)
 ```

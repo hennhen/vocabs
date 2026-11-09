@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useState } from 'react'
 import { BACKUP_REMINDER_DAYS } from '../backup'
+import { preloadAudio } from '../audio'
 import CardBack, { speak } from '../CardBack'
 import { db, getMeta, getSettings, gradeCard, introducedToday } from '../db'
 import { buildQueue, formatInterval, GRADES, preview } from '../srs'
@@ -42,10 +43,13 @@ export default function Review({ goTo }: { goTo: (tab: 'add' | 'settings') => vo
     [data, extraNew, now],
   )
 
-  if (!data || !queue) return null
+  const current = queue && (queue.reviews[0] ?? queue.fresh[0])
+  const word = current ? data?.words.get(current.wordId) : undefined
+  useEffect(() => {
+    if (word) preloadAudio(word.term)
+  }, [word?.term])
 
-  const current = queue.reviews[0] ?? queue.fresh[0]
-  const word = current && data.words.get(current.wordId)
+  if (!data || !queue) return null
   const pending = [...data.words.values()].filter((w) => w.status === 'pending').length
   const backupDue =
     data.words.size > 0 &&

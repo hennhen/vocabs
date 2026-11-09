@@ -47,7 +47,7 @@ spaced repetition. No Apple developer fee, no Mac required.
   synonyms with nuance. Every field is editable before saving.
 - **Paste a list:** bulk-add many words, auto-filled in the background.
 - **Review:** an FSRS queue of due cards: front → tap to flip → Again/Hard/Good/Easy.
-  Swipe gestures. Text-to-speech pronunciation (Web Speech API, free and on-device).
+  Swipe gestures. Pronunciation: MP3 from Workers AI played through <audio> (works with the ringer off), cached on the phone.
 - **Word list:** search, edit, delete, suspend.
 - **Backup:** export/import JSON; "last backup" indicator.
 - **Offline:** review works with no network; auto-fill queues until online.
@@ -108,7 +108,9 @@ iPhone (Home Screen PWA)                      Cloudflare
 4. ✅ Deployed on Cloudflare; installed on the iPhone; auto-fill is working live
 5. ✅ Word list opens full cards (‹ › to browse, then Edit); edit fields grow to fit; share-sheet
    capture through an iOS Shortcut and a server inbox (Durable Object). See SHORTCUT.md
-6. Remaining v0.2: word of the day, reverse cards, stats
+6. ✅ Pronunciation plays with the ringer off: MP3s from Workers AI (Deepgram Aura-2) played via
+   <audio>, cached on the phone; falls back to speech synthesis offline
+7. Remaining v0.2: word of the day, reverse cards, stats
 
 ## Open questions
 - None right now.

@@ -1,7 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { cleanTerm } from './define'
-import { fromSelection, handleApi, type Env } from './index'
+import { fromSelection, handleApi, type Env } from './api'
 
 const env = { ANTHROPIC_API_KEY: 'k', APP_TOKEN: 'secret', ASSETS: {} } as unknown as Env
 const card = {
@@ -108,5 +108,44 @@ describe('share-sheet inbox', () => {
   it('cleans selections', () => {
     expect(fromSelection(' (Sui Generis). ')).toBe('sui generis')
     expect(fromSelection('...')).toBeNull()
+  })
+})
+
+describe('pronunciation', () => {
+  const get = (path: string, token = 'secret') =>
+    new Request(`https://x.dev${path}`, { headers: { authorization: `Bearer ${token}` } })
+
+  it('returns MP3 audio from the text-to-speech model', async () => {
+    const run = vi.fn().mockResolvedValue(new Uint8Array([0xff, 0xfb, 1, 2]))
+    const res = await handleApi(get('/api/speak?term=Aghast'), { ...env, AI: { run } } as unknown as Env)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('audio/mpeg')
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([0xff, 0xfb, 1, 2]))
+    expect(run).toHaveBeenCalledWith('@cf/deepgram/aura-2-en', { text: 'aghast', encoding: 'mp3' })
+  })
+
+  it('needs the passphrase and a real word', async () => {
+    const run = vi.fn()
+    const e = { ...env, AI: { run } } as unknown as Env
+    expect((await handleApi(get('/api/speak?term=aghast', 'nope'), e)).status).toBe(401)
+    const long = get('/api/speak?term=' + encodeURIComponent('say something long and weird please'))
+    expect((await handleApi(long, e)).status).toBe(400)
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('reports model failures', async () => {
+    const run = vi.fn().mockRejectedValue(new Error('quota'))
+    const res = await handleApi(get('/api/speak?term=aghast'), { ...env, AI: { run } } as unknown as Env)
+    expect(res.status).toBe(502)
+  })
+})
+
+describe('worker entry module', () => {
+  it('only exports what the Workers runtime accepts (handlers and classes)', async () => {
+    const mod = await import('./index')
+    for (const [name, value] of Object.entries(mod)) {
+      if (name === 'default') expect(typeof (value as { fetch?: unknown }).fetch).toBe('function')
+      else expect(typeof value, `export "${name}"`).toBe('function')
+    }
   })
 })
