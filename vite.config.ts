@@ -1,8 +1,24 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execSync } from 'node:child_process'
+
+/** Shown in Settings so it's easy to tell whether the phone has the latest version. */
+function buildVersion(): string {
+  let sha = process.env.WORKERS_CI_COMMIT_SHA ?? ''
+  if (!sha) {
+    try {
+      sha = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    } catch {
+      sha = 'dev'
+    }
+  }
+  const when = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  return `${when} UTC · ${sha.slice(0, 7)}`
+}
 
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(buildVersion()) },
   plugins: [
     react(),
     VitePWA({

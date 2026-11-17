@@ -250,3 +250,7 @@ code { font-size: 0.9em; }
 .card-status { color: var(--muted); font-size: 0.9rem; text-align: center; margin: 12px 0; }
 .wordlist .chev { color: var(--muted); }
 .wide { width: 100%; }
+
+.checklog { font-size: 0.85rem; padding-left: 1.1em; margin: 8px 0; }
+.checklog li { margin-bottom: 4px; overflow-wrap: anywhere; }
+.version { margin-top: 24px; text-align: center; }
