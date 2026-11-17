@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { addMoreExamples, examplesFor, highlight } from './examples'
-import { MAX_EXAMPLES } from './db'
+import { examplesFor, highlight } from './examples'
 import type { Word } from './types'
 
 export { speak } from './audio'
@@ -11,28 +10,8 @@ export { speak } from './audio'
  */
 export default function CardBack({ word, turn = 0 }: { word: Word; turn?: number }) {
   const [extra, setExtra] = useState(0)
-  const [busy, setBusy] = useState(false)
-  const [note, setNote] = useState('')
   const shown = examplesFor(word.examples, turn + extra)
   const n = word.examples.length
-
-  const more = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setBusy(true)
-    setNote('')
-    try {
-      const added = await addMoreExamples(word.id)
-      if (added) {
-        // Jump to the new ones (they're appended at the end).
-        setExtra(Math.floor((n + added - 2) / 2) - turn)
-        setNote(`Added ${added} new example${added === 1 ? '' : 's'}`)
-      } else setNote('No new examples this time')
-    } catch (err) {
-      setNote((err as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
 
   return (
     <div className="back">
@@ -40,34 +19,35 @@ export default function CardBack({ word, turn = 0 }: { word: Word; turn?: number
       {word.definition && <p className="definition">{word.definition}</p>}
       {word.zhHant && <p className="zh big">{word.zhHant}</p>}
       {n > 0 && (
-        <ul className="examples">
-          {shown.map((ex) => (
-            <li key={ex}>
-              {highlight(ex, word.term).map((part, i) => (part.hit ? <b key={i}>{part.text}</b> : part.text))}
-            </li>
-          ))}
-        </ul>
+        <section className="examples-block">
+          <div className="examples-head">
+            <span>Examples</span>
+            {n > 2 && (
+              <button
+                type="button"
+                className="rotate"
+                aria-label="Show other examples"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setExtra((x) => x + 1)
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+                  <path d="M20 4v7h-7" />
+                </svg>
+              </button>
+            )}
+          </div>
+          <ul className="examples">
+            {shown.map((ex) => (
+              <li key={ex}>
+                {highlight(ex, word.term).map((part, i) => (part.hit ? <b key={i}>{part.text}</b> : part.text))}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
-      <div className="example-tools">
-        {n > 2 && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              setExtra((x) => x + 1)
-            }}
-          >
-            ↻ Other examples
-          </button>
-        )}
-        {n < MAX_EXAMPLES && (
-          <button type="button" onClick={more} disabled={busy}>
-            {busy ? 'Writing…' : '✨ More examples'}
-          </button>
-        )}
-        {n > 0 && <span className="hint">{n} total</span>}
-      </div>
-      {note && <p className="hint">{note}</p>}
       {word.etymology && (
         <p className="detail">
           <b>Roots</b> {word.etymology}
