@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
 import { getToken, ping, setToken } from '../api'
 import { forceUpdate, soundCheck } from '../audio'
+import { cloudInfo, onSyncChange, restoreFromCloud, syncNow } from '../sync'
 import { exportBackup, parseBackup, restoreBackup } from '../backup'
 import { db, getMeta, getSettings, saveSettings } from '../db'
 
@@ -12,6 +13,13 @@ export default function Settings() {
   const [token, setTokenInput] = useState<string | null>(null)
   const [tokenMsg, setTokenMsg] = useState('')
   const [checkLog, setCheckLog] = useState<string[]>([])
+  const [cloud, setCloud] = useState<{ words: number; savedAt: number } | null | undefined>(undefined)
+  const [cloudMsg, setCloudMsg] = useState('')
+  const refreshCloud = () => cloudInfo().then(setCloud, () => setCloud(undefined))
+  useEffect(() => {
+    refreshCloud()
+    return onSyncChange(refreshCloud)
+  }, [])
   useEffect(() => {
     getToken().then(setTokenInput)
   }, [])
@@ -52,10 +60,51 @@ export default function Settings() {
 
   return (
     <section>
-      <h2>Backup</h2>
+      <h2>Cloud sync</h2>
       <p className="hint">
-        Your words live on this phone. Save a backup to iCloud Drive or Files now and then, so you can restore them
-        if the app is deleted or you get a new phone.
+        Your words, cards and review history are copied to your Cloudflare server a few seconds after any change.
+        The server keeps the latest copy and the one before it.
+      </p>
+      <p>
+        {cloud === undefined
+          ? 'Cloud copy: can’t check (offline or no passphrase)'
+          : cloud
+            ? `Cloud copy: ${cloud.words} words, saved ${new Date(cloud.savedAt).toLocaleString()}`
+            : 'Cloud copy: nothing synced yet'}
+      </p>
+      {cloudMsg && <p className="hint">{cloudMsg}</p>}
+      <div className="row">
+        <button
+          onClick={async () => {
+            setCloudMsg('Syncing…')
+            try {
+              const n = await syncNow()
+              setCloudMsg(n === null ? 'Nothing to sync yet.' : `Synced ${n} words ✓`)
+            } catch (e) {
+              setCloudMsg(`Sync failed: ${(e as Error).message}`)
+            }
+          }}
+        >
+          Sync now
+        </button>
+        <button
+          onClick={async () => {
+            if (!cloud) return setCloudMsg('There’s no cloud copy to restore.')
+            if (!confirm(`Replace everything on this phone (${data.count} words) with the cloud copy (${cloud.words} words)?`)) return
+            try {
+              setCloudMsg(`Restored ${await restoreFromCloud()} words ✓`)
+            } catch (e) {
+              setCloudMsg(`Restore failed: ${(e as Error).message}`)
+            }
+          }}
+        >
+          Restore from cloud
+        </button>
+      </div>
+
+      <h2>Backup file</h2>
+      <p className="hint">
+        An extra copy you keep yourself: save a file to iCloud Drive or Files, and restore from it anytime.
       </p>
       <p>
         Last backup:{' '}
@@ -106,6 +155,7 @@ export default function Settings() {
             try {
               await ping()
               setTokenMsg('Connected ✓')
+              refreshCloud()
             } catch (e) {
               setTokenMsg((e as Error).message)
             }

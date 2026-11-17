@@ -20,14 +20,15 @@ export default function Review({ goTo }: { goTo: (tab: 'add' | 'settings') => vo
   }, [])
 
   const data = useLiveQuery(async () => {
-    const [cards, words, settings, introduced, lastBackupAt] = await Promise.all([
+    const [cards, words, settings, introduced, lastBackupAt, lastSyncAt] = await Promise.all([
       db.cards.toArray(),
       db.words.toArray(),
       getSettings(),
       introducedToday(now),
       getMeta<number | null>('lastBackupAt', null),
+      getMeta<number | null>('lastSyncAt', null),
     ])
-    return { cards, words: new Map(words.map((w) => [w.id, w])), settings, introduced, lastBackupAt }
+    return { cards, words: new Map(words.map((w) => [w.id, w])), settings, introduced, lastBackupAt: Math.max(lastBackupAt ?? 0, lastSyncAt ?? 0) || null }
   }, [now])
 
   const queue = useMemo(

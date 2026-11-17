@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { cleanTerm, defineWord } from './define'
 import type { Inbox } from './inbox'
+import type { Vault } from './vault'
 
 export interface Env {
   ANTHROPIC_API_KEY: string
@@ -8,6 +9,7 @@ export interface Env {
   APP_TOKEN: string
   ASSETS: Fetcher
   INBOX: DurableObjectNamespace<Inbox>
+  VAULT: DurableObjectNamespace<Vault>
   AI?: Ai
 }
 
@@ -79,6 +81,9 @@ const text = (body: string, status = 200) =>
   new Response(body, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } })
 
 const inbox = (env: Env) => env.INBOX.get(env.INBOX.idFromName('inbox'))
+const vault = (env: Env) => env.VAULT.get(env.VAULT.idFromName('vault'))
+
+const MAX_SNAPSHOT = 25 * 1024 * 1024
 
 /** Turns a share-sheet selection like `“Ubiquitous,”` into `ubiquitous`. */
 export const fromSelection = (raw: string) =>
@@ -130,6 +135,34 @@ export async function handleApi(request: Request, env: Env, client?: Anthropic, 
     } catch (e) {
       return json({ error: `Text-to-speech failed: ${(e as Error).message}` }, 502)
     }
+  }
+
+  // Cloud sync: the phone uploads its whole deck (backup format); GET returns it.
+  if (url.pathname === '/api/sync' && request.method === 'PUT') {
+    const body = await request.text()
+    if (body.length > MAX_SNAPSHOT) return json({ error: 'Deck too large to sync' }, 413)
+    let words: number
+    try {
+      const data = JSON.parse(body) as { app?: unknown; words?: unknown }
+      if (data.app !== 'vocabs' || !Array.isArray(data.words)) throw new Error()
+      words = data.words.length
+    } catch {
+      return json({ error: 'Not a Vocabs deck' }, 400)
+    }
+    try {
+      return json(await vault(env).save(body, words))
+    } catch (e) {
+      return json({ error: (e as Error).message }, 409)
+    }
+  }
+  if (url.pathname === '/api/sync' && request.method === 'GET') {
+    const which = url.searchParams.get('version') === 'previous' ? 'previous' : 'latest'
+    const body = await vault(env).load(which)
+    if (!body) return json({ error: 'Nothing synced yet' }, 404)
+    return new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } })
+  }
+  if (url.pathname === '/api/sync/info' && request.method === 'GET') {
+    return json(await vault(env).info())
   }
 
   if (url.pathname === '/api/inbox/take' && request.method === 'POST') {
