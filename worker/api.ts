@@ -12,24 +12,56 @@ export interface Env {
 }
 
 export const TTS_MODEL = '@cf/deepgram/aura-2-en'
+/** Bump to replace every cached pronunciation (server and phone). */
+const AUDIO_VERSION = 'v2'
+
+/**
+ * A human recording of the word from Wiktionary (via the Free Dictionary API), preferring
+ * American, then British, then any. Returns null if there isn't one.
+ */
+export async function findRecording(term: string): Promise<ArrayBuffer | null> {
+  const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(term)}`, {
+    signal: AbortSignal.timeout(4000),
+  })
+  if (!res.ok) return null
+  const entries = (await res.json()) as { phonetics?: { audio?: string }[] }[]
+  const urls = entries.flatMap((e) => e.phonetics ?? []).map((p) => p.audio ?? '').filter((u) => u.startsWith('https://'))
+  const rank = (u: string) => (/-us\.mp3$/.test(u) ? 0 : /-uk\.mp3$/.test(u) ? 1 : 2)
+  const best = urls.sort((a, b) => rank(a) - rank(b))[0]
+  if (!best) return null
+  const audio = await fetch(best, { signal: AbortSignal.timeout(4000) })
+  return audio.ok ? audio.arrayBuffer() : null
+}
 
 /**
  * Pronunciation as an MP3, so the app can play it through an <audio> element.
  * Unlike the browser's speech synthesis, that still plays when the iPhone's ringer is off.
- * Each word is generated once, then served from Cloudflare's cache.
+ * Uses a real recording when Wiktionary has one, otherwise an AI voice. Each word is made once,
+ * then served from Cloudflare's cache.
  */
 async function speak(term: string, env: Env, ctx?: ExecutionContext): Promise<Response> {
-  if (!env.AI) return json({ error: 'Text-to-speech is not set up' }, 503)
   const cache = typeof caches !== 'undefined' ? (caches as unknown as { default: Cache }).default : undefined
-  const key = new Request(`https://tts.vocabs.internal/${encodeURIComponent(TTS_MODEL)}/${encodeURIComponent(term)}`)
+  const key = new Request(`https://tts.vocabs.internal/${AUDIO_VERSION}/${encodeURIComponent(term)}`)
   const hit = await cache?.match(key)
   if (hit) return hit
-  // Call run() on the binding itself: a detached `env.AI.run` loses `this` and throws
-  // "Cannot set properties of undefined (setting '#options')".
-  const ai = env.AI as unknown as { run(model: string, input: object): Promise<ReadableStream | Uint8Array> }
-  const audio = await ai.run(TTS_MODEL, { text: term, encoding: 'mp3' })
+
+  let audio: ArrayBuffer | ReadableStream | Uint8Array | null = await findRecording(term).catch(() => null)
+  let source = 'recording'
+  if (!audio) {
+    if (!env.AI) return json({ error: 'Text-to-speech is not set up' }, 503)
+    // Call run() on the binding itself: a detached `env.AI.run` loses `this` and throws
+    // "Cannot set properties of undefined (setting '#options')".
+    const ai = env.AI as unknown as { run(model: string, input: object): Promise<ReadableStream | Uint8Array> }
+    // The trailing period makes the voice say it as a statement; a bare word comes out rising, like a question.
+    audio = await ai.run(TTS_MODEL, { text: `${term}.`, encoding: 'mp3' })
+    source = 'ai-voice'
+  }
   const res = new Response(audio, {
-    headers: { 'content-type': 'audio/mpeg', 'cache-control': 'private, max-age=31536000, immutable' },
+    headers: {
+      'content-type': 'audio/mpeg',
+      'cache-control': 'private, max-age=31536000, immutable',
+      'x-pronunciation-source': source,
+    },
   })
   if (cache) {
     const save = cache.put(key, res.clone())
