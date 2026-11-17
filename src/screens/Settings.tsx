@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
 import { getToken, ping, setToken } from '../api'
+import { forceUpdate, soundCheck } from '../audio'
 import { exportBackup, parseBackup, restoreBackup } from '../backup'
 import { db, getMeta, getSettings, saveSettings } from '../db'
 
@@ -10,6 +11,7 @@ export default function Settings() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [token, setTokenInput] = useState<string | null>(null)
   const [tokenMsg, setTokenMsg] = useState('')
+  const [checkLog, setCheckLog] = useState<string[]>([])
   useEffect(() => {
     getToken().then(setTokenInput)
   }, [])
@@ -133,6 +135,31 @@ export default function Settings() {
         Every new word comes back several times over the next weeks. About 20 a day keeps reviews to roughly 10–20
         minutes. When you want more, use “Study more” on the review screen.
       </p>
+
+      <h2>Sound &amp; version</h2>
+      <p className="hint">
+        Tap Test sound with your ringer off. It plays a beep, then the word “hello” from the server, and shows what
+        happened at each step.
+      </p>
+      <div className="row">
+        <button
+          onClick={() => {
+            setCheckLog([`App version: ${__APP_VERSION__}`])
+            soundCheck((line) => setCheckLog((l) => [...l, line]))
+          }}
+        >
+          🔊 Test sound
+        </button>
+        <button onClick={forceUpdate}>Force update</button>
+      </div>
+      {checkLog.length > 0 && (
+        <ul className="checklog">
+          {checkLog.map((l, i) => (
+            <li key={i}>{l}</li>
+          ))}
+        </ul>
+      )}
+      <p className="hint version">Version {__APP_VERSION__}</p>
     </section>
   )
 }
