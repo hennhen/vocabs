@@ -254,3 +254,37 @@ code { font-size: 0.9em; }
 .checklog { font-size: 0.85rem; padding-left: 1.1em; margin: 8px 0; }
 .checklog li { margin-bottom: 4px; overflow-wrap: anywhere; }
 .version { margin-top: 24px; text-align: center; }
+
+/* 🔊 button: pressed, loading, playing and error states */
+.speak {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  transition: transform 0.1s ease, background-color 0.2s, color 0.2s;
+}
+.speak:active { transform: scale(0.86); background: var(--border); }
+.speak.loading::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--accent);
+  animation: speak-spin 0.8s linear infinite;
+}
+.speak.playing { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+.speak.playing .w1 { animation: speak-wave 0.9s ease-in-out infinite; }
+.speak.playing .w2 { animation: speak-wave 0.9s ease-in-out 0.25s infinite; }
+.speak.error { color: var(--warn); border-color: var(--warn); animation: speak-shake 0.3s; }
+@keyframes speak-spin { to { transform: rotate(360deg); } }
+@keyframes speak-wave { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+@keyframes speak-shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .speak.loading::after, .speak.playing path, .speak.error { animation: none; }
+}

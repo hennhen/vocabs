@@ -2,7 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useState } from 'react'
 import { BACKUP_REMINDER_DAYS } from '../backup'
 import { preloadAudio } from '../audio'
-import CardBack, { speak } from '../CardBack'
+import CardBack from '../CardBack'
+import SpeakButton from '../SpeakButton'
 import { db, getMeta, getSettings, gradeCard, introducedToday } from '../db'
 import { buildQueue, formatInterval, GRADES, preview } from '../srs'
 import type { Grade } from 'ts-fsrs'
@@ -120,16 +121,7 @@ export default function Review({ goTo }: { goTo: (tab: 'add' | 'settings') => vo
         {isNew && <span className="badge new">new</span>}
         <div className="front">
           <h2 className="term">{word.term}</h2>
-          <button
-            className="icon"
-            aria-label="Pronounce"
-            onClick={(e) => {
-              e.stopPropagation()
-              speak(word.term)
-            }}
-          >
-            🔊
-          </button>
+          <SpeakButton term={word.term} />
         </div>
         {revealed ? <CardBack word={word} /> : <p className="hint">Think of the meaning, then tap to flip</p>}
       </div>

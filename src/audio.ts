@@ -16,10 +16,29 @@ let player: HTMLAudioElement | null = null
 
 const key = (term: string) => term.trim().toLowerCase()
 
+/* Playback status, so the 🔊 button can show loading / playing / error. */
+export type SpeakStatus = 'idle' | 'loading' | 'playing' | 'error'
+let state: { term: string; status: SpeakStatus } = { term: '', status: 'idle' }
+const listeners = new Set<() => void>()
+let errorTimer: ReturnType<typeof setTimeout> | undefined
+function setStatus(term: string, status: SpeakStatus) {
+  clearTimeout(errorTimer)
+  state = { term, status }
+  listeners.forEach((l) => l())
+  if (status === 'error') errorTimer = setTimeout(() => setStatus(term, 'idle'), 1800)
+}
+export const subscribeSpeak = (l: () => void) => (listeners.add(l), () => void listeners.delete(l))
+export const getSpeakState = () => state
+
 function getPlayer(): HTMLAudioElement {
   if (!player) {
     player = new Audio()
     player.preload = 'auto'
+    const done = () => {
+      if (state.status === 'playing') setStatus(state.term, 'idle')
+    }
+    player.addEventListener('ended', done)
+    player.addEventListener('pause', done)
     // Safari 17+: treat our sound as media playback rather than ambient sound.
     const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession
     if (session) session.type = 'playback'
@@ -100,31 +119,46 @@ let lastFallback = ''
 
 function speakWithSynthesis(term: string) {
   lastFallback = term
-  if (!('speechSynthesis' in window)) return
+  if (!('speechSynthesis' in window)) return setStatus(key(term), 'error')
   speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(term)
   u.lang = 'en-US'
+  u.onstart = () => setStatus(key(term), 'playing')
+  u.onend = () => state.term === key(term) && setStatus(key(term), 'idle')
+  u.onerror = () => state.term === key(term) && setStatus(key(term), 'error')
   speechSynthesis.speak(u)
 }
 
 /** Play a word's pronunciation. Must be called from a tap. */
 export function speak(raw: string) {
+  const term = key(raw)
   const p = getPlayer()
-  const ready = urls.get(key(raw))
+  const isCurrent = () => state.term === term
+  const playUrl = (url: string) => {
+    p.src = url
+    return p.play().then(() => isCurrent() && setStatus(term, 'playing'))
+  }
+  const fallback = () => {
+    if (!isCurrent()) return
+    speakWithSynthesis(raw)
+    // If the fallback voice doesn't start (e.g. iOS mutes it on silent), show the error.
+    setTimeout(() => isCurrent() && state.status === 'loading' && setStatus(term, 'error'), 1500)
+  }
+  const ready = urls.get(term)
   if (ready) {
-    p.src = ready
-    p.play().catch(() => speakWithSynthesis(raw))
+    setStatus(term, 'loading')
+    playUrl(ready).catch(fallback)
     return
   }
+  setStatus(term, 'loading')
   // Not downloaded yet: "unlock" the element during the tap, then play once the audio arrives.
   p.src = silentUrl()
   p.play().catch(() => {})
+  // Safety net: never leave the button spinning.
+  setTimeout(() => isCurrent() && state.status === 'loading' && setStatus(term, 'error'), 12_000)
   audioUrl(raw)
-    .then((url) => {
-      p.src = url
-      return p.play()
-    })
-    .catch(() => speakWithSynthesis(raw))
+    .then((url) => (isCurrent() && state.status === 'loading' ? playUrl(url) : undefined))
+    .catch(fallback)
 }
 
 const errName = (e: unknown) => (e instanceof Error ? `${e.name}: ${e.message}` : String(e))

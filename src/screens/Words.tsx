@@ -2,7 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 import { fillPending } from '../api'
 import { preloadAudio } from '../audio'
-import CardBack, { speak } from '../CardBack'
+import CardBack from '../CardBack'
+import SpeakButton from '../SpeakButton'
 import { db, deleteWord, setSuspended, updateWord } from '../db'
 import { formatInterval, State } from '../srs'
 import type { CardRow, Word } from '../types'
@@ -105,9 +106,7 @@ export default function Words() {
         <div className="card view">
           <div className="front">
             <h2 className="term">{word.term}</h2>
-            <button className="icon" aria-label="Pronounce" onClick={() => speak(word.term)}>
-              🔊
-            </button>
+            <SpeakButton term={word.term} />
           </div>
           {word.status === 'pending' ? (
             <p className="hint">No details yet. Tap Edit, then ✨ Auto-fill.</p>
