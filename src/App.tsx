@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { syncInbox } from './api'
+import { startAutoSync } from './sync'
+
+startAutoSync()
 import Add from './screens/Add'
 import Review from './screens/Review'
 import Settings from './screens/Settings'

@@ -196,3 +196,68 @@ describe('worker entry module', () => {
     }
   })
 })
+
+describe('cloud sync', () => {
+  // A real Vault over an in-memory stand-in for Durable Object storage.
+  const memoryStorage = () => {
+    const m = new Map<string, unknown>()
+    return {
+      map: m,
+      async get(k: string | string[]) {
+        return Array.isArray(k) ? new Map(k.filter((x) => m.has(x)).map((x) => [x, m.get(x)])) : m.get(k)
+      },
+      async put(k: string | Record<string, unknown>, v?: unknown) {
+        if (typeof k === 'string') m.set(k, v)
+        else for (const [a, b] of Object.entries(k)) m.set(a, b)
+      },
+      async delete(k: string | string[]) {
+        for (const x of Array.isArray(k) ? k : [k]) m.delete(x)
+      },
+    }
+  }
+  const setup = async () => {
+    const { Vault } = await import('./vault')
+    const storage = memoryStorage()
+    const v = new Vault({ storage } as never, {} as never)
+    const e = { ...env, VAULT: { idFromName: () => 'id', get: () => v } } as unknown as Env
+    return { e, storage }
+  }
+  const req = (method: string, path: string, body?: string) =>
+    new Request(`https://x.dev${path}`, { method, headers: { authorization: 'Bearer secret' }, body })
+  const deck = (n: number, pad = 0) =>
+    JSON.stringify({ app: 'vocabs', version: 1, words: Array.from({ length: n }, (_, i) => ({ term: `w${i}`, note: 'x'.repeat(pad) })), cards: [], reviews: [] })
+
+  it('stores a large deck in chunks and returns it intact', async () => {
+    const { e, storage } = await setup()
+    expect((await handleApi(req('GET', '/api/sync'), e)).status).toBe(404)
+    const big = deck(50, 2000) // ~100k characters -> several chunks
+    const put = await handleApi(req('PUT', '/api/sync', big), e)
+    expect(put.status).toBe(200)
+    expect(((await put.json()) as { words: number }).words).toBe(50)
+    expect([...storage.map.keys()].filter((k) => k.startsWith('g1:')).length).toBeGreaterThan(2)
+    expect(await (await handleApi(req('GET', '/api/sync'), e)).text()).toBe(big)
+  })
+
+  it('keeps the previous snapshot and cleans up older ones', async () => {
+    const { e, storage } = await setup()
+    for (const n of [1, 2, 3]) await handleApi(req('PUT', '/api/sync', deck(n)), e)
+    expect(await (await handleApi(req('GET', '/api/sync?version=previous'), e)).text()).toBe(deck(2))
+    expect([...storage.map.keys()].some((k) => k.startsWith('g1:'))).toBe(false)
+    const info = (await (await handleApi(req('GET', '/api/sync/info'), e)).json()) as { latest: { words: number } }
+    expect(info.latest.words).toBe(3)
+  })
+
+  it('refuses to replace synced words with an empty deck, and rejects junk', async () => {
+    const { e } = await setup()
+    await handleApi(req('PUT', '/api/sync', deck(5)), e)
+    expect((await handleApi(req('PUT', '/api/sync', deck(0)), e)).status).toBe(409)
+    expect((await handleApi(req('PUT', '/api/sync', '{"hello":1}'), e)).status).toBe(400)
+    expect(JSON.parse(await (await handleApi(req('GET', '/api/sync'), e)).text()).words).toHaveLength(5)
+  })
+
+  it('needs the passphrase', async () => {
+    const { e } = await setup()
+    const r = new Request('https://x.dev/api/sync', { headers: { authorization: 'Bearer nope' } })
+    expect((await handleApi(r, e)).status).toBe(401)
+  })
+})

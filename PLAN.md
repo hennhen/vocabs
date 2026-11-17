@@ -110,7 +110,9 @@ iPhone (Home Screen PWA)                      Cloudflare
    capture through an iOS Shortcut and a server inbox (Durable Object). See SHORTCUT.md
 6. ✅ Pronunciation plays with the ringer off: MP3s from Workers AI (Deepgram Aura-2) played via
    <audio>, cached on the phone; falls back to speech synthesis offline
-7. Remaining v0.2: word of the day, reverse cards, stats
+7. ✅ Cloud sync: the phone uploads its deck to a Durable Object (Vault) after changes; Restore from
+   cloud; the server keeps the latest and previous copy and refuses an empty overwrite
+8. Remaining v0.2: word of the day, reverse cards, stats
 
 ## Open questions
 - None right now.

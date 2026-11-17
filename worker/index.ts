@@ -3,6 +3,7 @@
 import { handleApi, type Env } from './api'
 
 export { Inbox } from './inbox'
+export { Vault } from './vault'
 
 export default {
   fetch(request, env, ctx) {
