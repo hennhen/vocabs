@@ -288,3 +288,5 @@ code { font-size: 0.9em; }
 @media (prefers-reduced-motion: reduce) {
   .speak.loading::after, .speak.playing path, .speak.error { animation: none; }
 }
+
+.token-tools { margin-top: 8px; }

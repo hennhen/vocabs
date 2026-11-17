@@ -12,6 +12,7 @@ export default function Settings() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [token, setTokenInput] = useState<string | null>(null)
   const [tokenMsg, setTokenMsg] = useState('')
+  const [showToken, setShowToken] = useState(false)
   const [checkLog, setCheckLog] = useState<string[]>([])
   const [cloud, setCloud] = useState<{ words: number; savedAt: number } | null | undefined>(undefined)
   const [cloudMsg, setCloudMsg] = useState('')
@@ -134,16 +135,20 @@ export default function Settings() {
         </p>
       )}
 
-      <h2>Auto-fill</h2>
+      <h2>Passphrase</h2>
       <p className="hint">
-        The passphrase you set as <code>APP_TOKEN</code> in Cloudflare. It stops strangers from using your Claude
-        credit.
+        The <code>APP_TOKEN</code> you set in Cloudflare. It keeps strangers from using your Claude credit or reading
+        your words. You only enter it once; the app remembers it. Use Show or Copy when you need it for the Share
+        Shortcut.
       </p>
       <div className="row">
         <input
-          type="password"
+          type={showToken ? 'text' : 'password'}
           className="grow"
           autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           placeholder="Passphrase"
           value={token ?? ''}
           onChange={(e) => setTokenInput(e.target.value)}
@@ -164,7 +169,27 @@ export default function Settings() {
           Save
         </button>
       </div>
-      {tokenMsg && <p className={`hint ${tokenMsg.startsWith('Connected') ? 'ok' : 'warn'}`}>{tokenMsg}</p>}
+      <div className="row token-tools">
+        <button type="button" onClick={() => setShowToken((v) => !v)} disabled={!token}>
+          {showToken ? 'Hide' : 'Show'}
+        </button>
+        <button
+          type="button"
+          disabled={!token}
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(token ?? '')
+              setTokenMsg('Copied ✓')
+            } catch {
+              setShowToken(true)
+              setTokenMsg('Couldn’t copy. It’s shown above; select it and copy.')
+            }
+          }}
+        >
+          Copy
+        </button>
+      </div>
+      {tokenMsg && <p className={`hint ${/^(Connected|Copied)/.test(tokenMsg) ? 'ok' : 'warn'}`}>{tokenMsg}</p>}
 
       <h2>Learning</h2>
       <label className="field">
