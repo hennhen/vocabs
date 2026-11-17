@@ -52,3 +52,47 @@ export function cleanTerm(input: unknown): string | null {
   if (!t || t.length > 60 || !/^[\p{L}][\p{L}' -]*$/u.test(t) || t.split(' ').length > 5) return null
   return t
 }
+
+export const Examples = z.object({
+  examples: z.array(z.string()).describe('Exactly 3 new example sentences'),
+})
+
+export const EXAMPLES_SYSTEM = `You write example sentences for a vocabulary flashcard. The learner is a native English speaker building an advanced vocabulary, and sees a different pair of examples each time the card comes up, so variety matters.
+
+Write exactly 3 new sentences that use the word (any inflection) in the sense given. Each sentence:
+- reads like something from a good novel, essay, news story or thoughtful conversation, 10 to 25 words;
+- makes the meaning guessable from context;
+- uses a different setting and register from the others (e.g. work, relationships, history, science, everyday life, fiction);
+- does not repeat, closely paraphrase, or reuse the scenario of any existing example.`
+
+export interface ExampleRequest {
+  term: string
+  pos: string
+  definition: string
+  existing: string[]
+}
+
+/** Asks Claude for 3 new example sentences that differ from the existing ones. */
+export async function moreExamples(client: Anthropic, req: ExampleRequest): Promise<string[]> {
+  const existing = req.existing.length ? req.existing.map((e) => `- ${e}`).join('\n') : '(none)'
+  const response = await client.beta.messages.parse({
+    model: MODEL,
+    max_tokens: 2000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    output_config: { effort: 'low', format: betaZodOutputFormat(Examples) },
+    system: EXAMPLES_SYSTEM,
+    messages: [
+      {
+        role: 'user',
+        content: `Word: ${req.term}\nPart of speech: ${req.pos || 'unknown'}\nSense: ${req.definition || 'its most common sense'}\n\nExisting examples:\n${existing}`,
+      },
+    ],
+  })
+  if (response.stop_reason === 'refusal') throw new Error('Claude declined to write examples for this word')
+  if (!response.parsed_output) throw new Error(`Could not read Claude's answer (stop: ${response.stop_reason})`)
+  return response.parsed_output.examples.map((s) => s.trim()).filter(Boolean).slice(0, 3)
+}
+
+/** Bounds client-supplied text so the endpoint can't be used for arbitrary prompts. */
+export const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')

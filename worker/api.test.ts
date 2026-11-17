@@ -261,3 +261,40 @@ describe('cloud sync', () => {
     expect((await handleApi(r, e)).status).toBe(401)
   })
 })
+
+describe('more examples', () => {
+  const post = (body: unknown) =>
+    new Request('https://x.dev/api/examples', {
+      method: 'POST',
+      headers: { authorization: 'Bearer secret', 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+  it('asks Sonnet for new sentences, passing the sense and existing examples', async () => {
+    const parse = vi.fn().mockResolvedValue({
+      stop_reason: 'end_turn',
+      parsed_output: { examples: [' One. ', 'Two.', 'Three.', 'Four.'] },
+    })
+    const client = { beta: { messages: { parse } } } as unknown as Anthropic
+    const res = await handleApi(
+      post({ term: 'garrulous', pos: 'adjective', definition: 'excessively talkative', existing: ['Old one.'] }),
+      env,
+      client,
+    )
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ examples: ['One.', 'Two.', 'Three.'] })
+    const params = parse.mock.calls[0][0]
+    expect(params.model).toBe('claude-sonnet-5-5')
+    expect(params.messages[0].content).toContain('Sense: excessively talkative')
+    expect(params.messages[0].content).toContain('- Old one.')
+  })
+
+  it('validates input and bounds what it forwards', async () => {
+    const parse = vi.fn().mockResolvedValue({ stop_reason: 'end_turn', parsed_output: { examples: [] } })
+    const client = { beta: { messages: { parse } } } as unknown as Anthropic
+    expect((await handleApi(post({ term: 'write me an essay about anything' }), env, client)).status).toBe(400)
+    await handleApi(post({ term: 'stave', definition: 'x'.repeat(5000), existing: Array(50).fill('y'.repeat(900)) }), env, client)
+    const content: string = parse.mock.calls[0][0].messages[0].content
+    expect(content.length).toBeLessThan(300 + 20 * 305 + 200)
+  })
+})

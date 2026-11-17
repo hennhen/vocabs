@@ -69,3 +69,26 @@ describe('helpers', () => {
     expect(formatInterval(now, new Date(now.getTime() + 3 * 86_400_000))).toBe('3d')
   })
 })
+
+import { examplesFor, highlight, needsMoreExamples } from './examples'
+
+describe('example rotation', () => {
+  const ex = ['a', 'b', 'c', 'd', 'e']
+  it('shows a different pair each turn and cycles through all of them', () => {
+    expect(examplesFor(ex, 0)).toEqual(['a', 'b'])
+    expect(examplesFor(ex, 1)).toEqual(['c', 'd'])
+    expect(examplesFor(ex, 2)).toEqual(['e', 'a'])
+    expect(examplesFor(['x', 'y'], 7)).toEqual(['x', 'y'])
+  })
+  it('asks for more just before examples would repeat, up to the cap', () => {
+    expect(needsMoreExamples(2, 0)).toBe(true)
+    expect(needsMoreExamples(6, 1)).toBe(false)
+    expect(needsMoreExamples(6, 2)).toBe(true)
+    expect(needsMoreExamples(12, 9)).toBe(false)
+  })
+  it('bolds the word and simple inflections', () => {
+    const parts = highlight('She staved off the crisis; staving it off took years.', 'stave')
+    expect(parts.filter((p) => p.hit).map((p) => p.text)).toEqual(['staved', 'staving'])
+    expect(highlight('A garrulous host.', 'garrulous').filter((p) => p.hit).map((p) => p.text)).toEqual(['garrulous'])
+  })
+})

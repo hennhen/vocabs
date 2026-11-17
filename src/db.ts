@@ -114,3 +114,20 @@ export const setMeta = (key: string, value: unknown, d = db) => d.meta.put({ key
 
 export const getSettings = (d = db) => getMeta<Settings>('settings', DEFAULT_SETTINGS, d)
 export const saveSettings = (s: Settings, d = db) => setMeta('settings', s, d)
+
+export const MAX_EXAMPLES = 12
+
+/** Adds new example sentences to a word (skipping duplicates), keeping at most MAX_EXAMPLES. */
+export async function appendExamples(wordId: string, more: string[], d = db): Promise<number> {
+  let added = 0
+  await d.transaction('rw', d.words, async () => {
+    const w = await d.words.get(wordId)
+    if (!w) return
+    const seen = new Set(w.examples.map((e) => e.trim().toLowerCase()))
+    const fresh = more.map((e) => e.trim()).filter((e) => e && !seen.has(e.toLowerCase()))
+    added = fresh.length
+    if (!added) return
+    await d.words.update(wordId, { examples: [...w.examples, ...fresh].slice(-MAX_EXAMPLES), updatedAt: Date.now() })
+  })
+  return added
+}

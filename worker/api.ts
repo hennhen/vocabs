@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { cleanTerm, defineWord } from './define'
+import { cleanTerm, clip, defineWord, moreExamples } from './define'
 import type { Inbox } from './inbox'
 import type { Vault } from './vault'
 
@@ -103,6 +103,18 @@ async function tokenMatches(given: string, expected: string): Promise<boolean> {
   return diff === 0
 }
 
+/** Runs a Claude call and turns failures into clear JSON errors. */
+async function askClaude(fn: () => Promise<unknown>): Promise<Response> {
+  try {
+    return json(await fn())
+  } catch (e) {
+    if (e instanceof Anthropic.RateLimitError) return json({ error: 'Too many requests, try again shortly' }, 429)
+    if (e instanceof Anthropic.AuthenticationError) return json({ error: 'The server’s Anthropic key is invalid' }, 502)
+    if (e instanceof Anthropic.APIError) return json({ error: `Claude API error ${e.status}` }, 502)
+    return json({ error: (e as Error).message }, 502)
+  }
+}
+
 export async function handleApi(request: Request, env: Env, client?: Anthropic, ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url)
   if (!env.APP_TOKEN || !env.ANTHROPIC_API_KEY) return json({ error: 'Server is missing its secrets' }, 500)
@@ -175,15 +187,19 @@ export async function handleApi(request: Request, env: Env, client?: Anthropic, 
     const body = (await request.json().catch(() => null)) as { term?: unknown } | null
     const term = cleanTerm(body?.term)
     if (!term) return json({ error: 'Send a single word or short phrase' }, 400)
-    try {
-      const def = await defineWord(client ?? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }), term)
-      return json(def)
-    } catch (e) {
-      if (e instanceof Anthropic.RateLimitError) return json({ error: 'Too many requests, try again shortly' }, 429)
-      if (e instanceof Anthropic.AuthenticationError) return json({ error: 'The server’s Anthropic key is invalid' }, 502)
-      if (e instanceof Anthropic.APIError) return json({ error: `Claude API error ${e.status}` }, 502)
-      return json({ error: (e as Error).message }, 502)
-    }
+    return askClaude(() => defineWord(client ?? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }), term))
   }
+
+  if (url.pathname === '/api/examples' && request.method === 'POST') {
+    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
+    const term = cleanTerm(body?.term)
+    if (!term) return json({ error: 'Send a single word or short phrase' }, 400)
+    const existing = (Array.isArray(body?.existing) ? body.existing : []).slice(0, 20).map((e) => clip(e, 300)).filter(Boolean)
+    const req = { term, pos: clip(body?.pos, 40), definition: clip(body?.definition, 300), existing }
+    return askClaude(async () => ({
+      examples: await moreExamples(client ?? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }), req),
+    }))
+  }
+
   return json({ error: 'Not found' }, 404)
 }
