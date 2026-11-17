@@ -94,3 +94,14 @@ export async function syncInbox(): Promise<number> {
   if (added) void fillPending()
   return added
 }
+
+/** Asks Claude for 3 new example sentences for a word, different from the ones it has. */
+export async function fetchMoreExamples(w: { term: string; pos: string; definition: string; examples: string[] }) {
+  const r = (await call('/api/examples', {
+    term: w.term,
+    pos: w.pos,
+    definition: w.definition,
+    existing: w.examples,
+  })) as { examples: string[] }
+  return r.examples
+}

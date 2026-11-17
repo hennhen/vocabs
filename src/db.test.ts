@@ -65,3 +65,16 @@ describe('backup', () => {
     expect(() => parseBackup('{"hello":1}')).toThrow(/backup/)
   })
 })
+
+describe('appendExamples', () => {
+  it('adds new sentences, skips duplicates, and caps the total', async () => {
+    const { appendExamples, MAX_EXAMPLES } = await import('./db')
+    const w = await addWord({ ...emptyDraft('stave'), definition: 'ward off', examples: ['One.'] }, d)
+    expect(await appendExamples(w.id, ['one.', 'Two.', ' Three. '], d)).toBe(2)
+    expect((await d.words.get(w.id))!.examples).toEqual(['One.', 'Two.', 'Three.'])
+    await appendExamples(w.id, Array.from({ length: 20 }, (_, i) => `S${i}.`), d)
+    const all = (await d.words.get(w.id))!.examples
+    expect(all).toHaveLength(MAX_EXAMPLES)
+    expect(all.at(-1)).toBe('S19.')
+  })
+})

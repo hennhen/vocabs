@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BACKUP_REMINDER_DAYS } from '../backup'
 import { preloadAudio } from '../audio'
 import CardBack from '../CardBack'
+import { addMoreExamples, needsMoreExamples } from '../examples'
 import SpeakButton from '../SpeakButton'
 import { db, getMeta, getSettings, gradeCard, introducedToday } from '../db'
 import { buildQueue, formatInterval, GRADES, preview } from '../srs'
@@ -60,6 +61,10 @@ export default function Review({ goTo }: { goTo: (tab: 'add' | 'settings') => vo
   const grade = async (g: Grade) => {
     if (!current) return
     const at = new Date()
+    // Next time this card comes up it shows the next pair of examples; top up before they run out.
+    if (word && word.definition && needsMoreExamples(word.examples.length, current.fsrs.reps + 1)) {
+      addMoreExamples(word.id).catch(() => {})
+    }
     await gradeCard(current, g, at)
     setRevealed(false)
     setNow(at)
@@ -124,7 +129,7 @@ export default function Review({ goTo }: { goTo: (tab: 'add' | 'settings') => vo
           <h2 className="term">{word.term}</h2>
           <SpeakButton term={word.term} />
         </div>
-        {revealed ? <CardBack word={word} /> : <p className="hint">Think of the meaning, then tap to flip</p>}
+        {revealed ? <CardBack key={word.id} word={word} turn={current.fsrs.reps} /> : <p className="hint">Think of the meaning, then tap to flip</p>}
       </div>
       {revealed && intervals ? (
         <div className="grades">
