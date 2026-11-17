@@ -117,7 +117,15 @@ describe('pronunciation', () => {
 
   it('returns MP3 audio from the text-to-speech model', async () => {
     const run = vi.fn().mockResolvedValue(new Uint8Array([0xff, 0xfb, 1, 2]))
-    const res = await handleApi(get('/api/speak?term=Aghast'), { ...env, AI: { run } } as unknown as Env)
+    // Like the real binding, run() only works when called on the binding object.
+    class FakeAi {
+      #options = {}
+      run(model: string, input: object) {
+        this.#options = input
+        return run(model, input)
+      }
+    }
+    const res = await handleApi(get('/api/speak?term=Aghast'), { ...env, AI: new FakeAi() } as unknown as Env)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('audio/mpeg')
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([0xff, 0xfb, 1, 2]))

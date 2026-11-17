@@ -24,8 +24,10 @@ async function speak(term: string, env: Env, ctx?: ExecutionContext): Promise<Re
   const key = new Request(`https://tts.vocabs.internal/${encodeURIComponent(TTS_MODEL)}/${encodeURIComponent(term)}`)
   const hit = await cache?.match(key)
   if (hit) return hit
-  const run = env.AI.run as unknown as (model: string, input: object) => Promise<ReadableStream | Uint8Array>
-  const audio = await run(TTS_MODEL, { text: term, encoding: 'mp3' })
+  // Call run() on the binding itself: a detached `env.AI.run` loses `this` and throws
+  // "Cannot set properties of undefined (setting '#options')".
+  const ai = env.AI as unknown as { run(model: string, input: object): Promise<ReadableStream | Uint8Array> }
+  const audio = await ai.run(TTS_MODEL, { text: term, encoding: 'mp3' })
   const res = new Response(audio, {
     headers: { 'content-type': 'audio/mpeg', 'cache-control': 'private, max-age=31536000, immutable' },
   })
