@@ -12,19 +12,23 @@ export function examplesFor(examples: string[], turn: number, count = 2): string
 export const needsMoreExamples = (n: number, turn: number, count = 2) =>
   n < MAX_EXAMPLES && (turn + 1) * count >= n
 
-const inflight = new Set<string>()
+const inflight = new Map<string, Promise<number>>()
 
-/** Fetches 3 more examples for a word and saves them. Returns how many were added. */
-export async function addMoreExamples(wordId: string): Promise<number> {
-  if (inflight.has(wordId)) return 0
-  inflight.add(wordId)
-  try {
-    const w = await db.words.get(wordId)
-    if (!w) return 0
-    return await appendExamples(wordId, await fetchMoreExamples(w))
-  } finally {
-    inflight.delete(wordId)
+/**
+ * Fetches 3 more examples for a word and saves them. Returns how many were added.
+ * A second call while one is running waits for the same request.
+ */
+export function addMoreExamples(wordId: string): Promise<number> {
+  let p = inflight.get(wordId)
+  if (!p) {
+    p = (async () => {
+      const w = await db.words.get(wordId)
+      if (!w) return 0
+      return appendExamples(wordId, await fetchMoreExamples(w))
+    })().finally(() => inflight.delete(wordId))
+    inflight.set(wordId, p)
   }
+  return p
 }
 
 /** Splits a sentence so the studied word (and simple inflections like -s, -ed, -ing) can be bolded. */

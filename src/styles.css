@@ -331,5 +331,6 @@ code { font-size: 0.9em; }
   transition: transform 0.3s ease, color 0.2s;
 }
 .rotate:active { transform: rotate(-120deg); color: var(--accent); }
+.rotate.busy { color: var(--accent); animation: speak-spin 0.8s linear infinite reverse; }
 @keyframes example-in { from { opacity: 0; transform: translateY(3px); } }
 @media (prefers-reduced-motion: reduce) { .examples li { animation: none; } }

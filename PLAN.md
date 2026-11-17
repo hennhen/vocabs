@@ -113,7 +113,8 @@ iPhone (Home Screen PWA)                      Cloudflare
 7. ✅ Cloud sync: the phone uploads its deck to a Durable Object (Vault) after changes; Restore from
    cloud; the server keeps the latest and previous copy and refuses an empty overwrite
 8. ✅ Example rotation: each review shows a different pair of examples in separate panels; ↻ cycles;
-   new examples are fetched in the background (Claude, /api/examples) before they repeat, up to 12 per word
+   ↻ fetches fresh ones from Claude (/api/examples) once all have been seen; review prefetches when a
+   flipped card is running low; up to 12 per word
 9. Remaining v0.2: word of the day, reverse cards, stats
 
 ## Open questions
