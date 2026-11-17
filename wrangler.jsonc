@@ -15,5 +15,7 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Inbox"] }],
   // Workers AI, for word pronunciations (text-to-speech).
   "ai": { "binding": "AI" },
+  // Preview builds (`wrangler preview`) need their bindings listed separately.
+  "previews": { "ai": { "binding": "AI" } },
   "observability": { "enabled": true }
 }
