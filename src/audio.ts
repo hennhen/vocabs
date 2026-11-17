@@ -9,8 +9,16 @@ import { getToken } from './api'
  * (offline, or no passphrase set yet).
  */
 
-const CACHE = 'vocabs-tts-v1'
+const CACHE = 'vocabs-tts-v2'
 const urls = new Map<string, string>()
+
+// Drop pronunciations saved by older versions (they used the rising-tone AI voice for everything).
+if (typeof caches !== 'undefined') {
+  caches
+    .keys()
+    .then((keys) => keys.filter((k) => k.startsWith('vocabs-tts-') && k !== CACHE).forEach((k) => caches.delete(k)))
+    .catch(() => {})
+}
 const inflight = new Map<string, Promise<string>>()
 let player: HTMLAudioElement | null = null
 
@@ -197,7 +205,8 @@ export async function soundCheck(log: (line: string) => void) {
       return
     }
     blob = await res.blob()
-    log(`2. Server audio: HTTP 200, ${type}, ${(blob.size / 1024).toFixed(1)} KB ✓`)
+    const source = res.headers.get('x-pronunciation-source') === 'recording' ? 'human recording' : 'AI voice'
+    log(`2. Server audio: HTTP 200, ${type}, ${(blob.size / 1024).toFixed(1)} KB, ${source} ✓`)
   } catch (e) {
     log(`2. Server audio: request failed (${errName(e)})`)
     return

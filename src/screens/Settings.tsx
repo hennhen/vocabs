@@ -159,7 +159,11 @@ export default function Settings() {
           ))}
         </ul>
       )}
-      <p className="hint version">Version {__APP_VERSION__}</p>
+      <p className="hint version">
+        Version {__APP_VERSION__}
+        <br />
+        Recorded pronunciations: Wiktionary contributors via Wikimedia Commons (CC BY-SA), served by dictionaryapi.dev.
+      </p>
     </section>
   )
 }

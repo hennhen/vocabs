@@ -1,5 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanTerm } from './define'
 import { fromSelection, handleApi, type Env } from './api'
 
@@ -114,10 +114,9 @@ describe('share-sheet inbox', () => {
 describe('pronunciation', () => {
   const get = (path: string, token = 'secret') =>
     new Request(`https://x.dev${path}`, { headers: { authorization: `Bearer ${token}` } })
-
-  it('returns MP3 audio from the text-to-speech model', async () => {
-    const run = vi.fn().mockResolvedValue(new Uint8Array([0xff, 0xfb, 1, 2]))
-    // Like the real binding, run() only works when called on the binding object.
+  const mp3 = new Uint8Array([0xff, 0xfb, 1, 2])
+  // Like the real binding, run() only works when called on the binding object.
+  const fakeAi = (run = vi.fn().mockResolvedValue(mp3)) => {
     class FakeAi {
       #options = {}
       run(model: string, input: object) {
@@ -125,25 +124,65 @@ describe('pronunciation', () => {
         return run(model, input)
       }
     }
-    const res = await handleApi(get('/api/speak?term=Aghast'), { ...env, AI: new FakeAi() } as unknown as Env)
+    return { ai: new FakeAi(), run }
+  }
+  const dictionary = (phonetics: { audio: string }[] | null) =>
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input instanceof Request ? input.url : input)
+      if (url.startsWith('https://api.dictionaryapi.dev/api/')) {
+        return phonetics ? Response.json([{ phonetics }]) : new Response('{}', { status: 404 })
+      }
+      return new Response(new Uint8Array([0x49, 0x44, 0x33, url.includes('-us') ? 1 : 2]))
+    })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('prefers an American human recording when Wiktionary has one', async () => {
+    const f = dictionary([{ audio: '' }, { audio: 'https://x/media/benign-uk.mp3' }, { audio: 'https://x/media/benign-us.mp3' }])
+    const { ai, run } = fakeAi()
+    const res = await handleApi(get('/api/speak?term=Benign'), { ...env, AI: ai } as unknown as Env)
     expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe('audio/mpeg')
-    expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([0xff, 0xfb, 1, 2]))
-    expect(run).toHaveBeenCalledWith('@cf/deepgram/aura-2-en', { text: 'aghast', encoding: 'mp3' })
+    expect(res.headers.get('x-pronunciation-source')).toBe('recording')
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([0x49, 0x44, 0x33, 1]))
+    expect(f.mock.calls[0][0]).toBe('https://api.dictionaryapi.dev/api/v2/entries/en/benign')
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the AI voice, said as a statement, when there is no recording', async () => {
+    for (const phonetics of [[{ audio: '' }], null]) {
+      dictionary(phonetics)
+      const { ai, run } = fakeAi()
+      const res = await handleApi(get('/api/speak?term=aghast'), { ...env, AI: ai } as unknown as Env)
+      expect(res.headers.get('x-pronunciation-source')).toBe('ai-voice')
+      expect(res.headers.get('content-type')).toBe('audio/mpeg')
+      expect(new Uint8Array(await res.arrayBuffer())).toEqual(mp3)
+      expect(run).toHaveBeenCalledWith('@cf/deepgram/aura-2-en', { text: 'aghast.', encoding: 'mp3' })
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('uses the AI voice if the dictionary is down', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network'))
+    const { ai, run } = fakeAi()
+    const res = await handleApi(get('/api/speak?term=aghast'), { ...env, AI: ai } as unknown as Env)
+    expect(res.status).toBe(200)
+    expect(run).toHaveBeenCalled()
   })
 
   it('needs the passphrase and a real word', async () => {
-    const run = vi.fn()
-    const e = { ...env, AI: { run } } as unknown as Env
+    const f = dictionary(null)
+    const { ai, run } = fakeAi()
+    const e = { ...env, AI: ai } as unknown as Env
     expect((await handleApi(get('/api/speak?term=aghast', 'nope'), e)).status).toBe(401)
     const long = get('/api/speak?term=' + encodeURIComponent('say something long and weird please'))
     expect((await handleApi(long, e)).status).toBe(400)
     expect(run).not.toHaveBeenCalled()
+    expect(f).not.toHaveBeenCalled()
   })
 
   it('reports model failures', async () => {
-    const run = vi.fn().mockRejectedValue(new Error('quota'))
-    const res = await handleApi(get('/api/speak?term=aghast'), { ...env, AI: { run } } as unknown as Env)
+    dictionary(null)
+    const { ai } = fakeAi(vi.fn().mockRejectedValue(new Error('quota')))
+    const res = await handleApi(get('/api/speak?term=aghast'), { ...env, AI: ai } as unknown as Env)
     expect(res.status).toBe(502)
   })
 })
