@@ -112,8 +112,8 @@ iPhone (Home Screen PWA)                      Cloudflare
    <audio>, cached on the phone; falls back to speech synthesis offline
 7. ✅ Cloud sync: the phone uploads its deck to a Durable Object (Vault) after changes; Restore from
    cloud; the server keeps the latest and previous copy and refuses an empty overwrite
-8. ✅ Example rotation: each review shows a different pair of examples; ↻ cycles; ✨ More examples
-   (Claude, /api/examples); auto top-up before examples repeat, up to 12 per word
+8. ✅ Example rotation: each review shows a different pair of examples in separate panels; ↻ cycles;
+   new examples are fetched in the background (Claude, /api/examples) before they repeat, up to 12 per word
 9. Remaining v0.2: word of the day, reverse cards, stats
 
 ## Open questions

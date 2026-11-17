@@ -5,6 +5,7 @@
   --muted: #6b6860;
   --border: #e3e0d8;
   --accent: #2f5d50;
+  --accent-soft: #b9cdc5;
   --accent-text: #ffffff;
   --warn: #a4471c;
   --ok: #2f6b3a;
@@ -22,6 +23,7 @@
     --muted: #a19e94;
     --border: #34322e;
     --accent: #6fb39c;
+    --accent-soft: #3c5f53;
     --accent-text: #0f1a16;
     --warn: #e58a5f;
     --ok: #7cc28a;
@@ -148,7 +150,6 @@ input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 
 .pos { color: var(--muted); font-style: italic; }
 .definition { font-size: 1.1rem; }
 .zh.big { font-size: 1.6rem; }
-.examples { margin: 0 0 10px; padding-left: 1.1em; color: var(--muted); font-style: italic; }
 .detail { font-size: 0.95rem; }
 .detail b { color: var(--muted); font-weight: 600; margin-right: 6px; }
 .reveal { padding: 16px; }
@@ -291,7 +292,44 @@ code { font-size: 0.9em; }
 
 .token-tools { margin-top: 8px; }
 
-.examples b { color: var(--text); font-weight: 600; font-style: normal; }
-.example-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -2px 0 12px; }
-.example-tools button { padding: 6px 12px; font-size: 0.85rem; border-radius: 999px; }
-.example-tools .hint { font-size: 0.8rem; }
+
+/* Examples: each sentence in its own quiet panel */
+.examples-block { margin: 14px 0 16px; }
+.examples-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.examples { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.examples li {
+  background: var(--bg);
+  border-left: 3px solid var(--accent-soft);
+  border-radius: 4px 12px 12px 4px;
+  padding: 10px 14px;
+  line-height: 1.5;
+  color: var(--muted);
+  animation: example-in 0.25s ease;
+}
+.examples b { color: var(--text); font-weight: 600; }
+.rotate {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  transition: transform 0.3s ease, color 0.2s;
+}
+.rotate:active { transform: rotate(-120deg); color: var(--accent); }
+@keyframes example-in { from { opacity: 0; transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .examples li { animation: none; } }
